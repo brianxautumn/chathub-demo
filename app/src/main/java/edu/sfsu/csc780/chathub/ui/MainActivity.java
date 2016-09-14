@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.sfsu.csc780.chathub;
+package edu.sfsu.csc780.chathub.ui;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -31,38 +31,32 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
+import android.content.Intent;
 
+import com.firebase.ui.database.FirebaseRecyclerAdapter;
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 
-import de.hdodenhof.circleimageview.CircleImageView;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.FirebaseAuth;
+
+import edu.sfsu.csc780.chathub.R;
+import edu.sfsu.csc780.chathub.model.ChatMessage;
 
 public class MainActivity extends AppCompatActivity
-        implements GoogleApiClient.OnConnectionFailedListener {
 
-    public static class MessageViewHolder extends RecyclerView.ViewHolder {
-        public TextView messageTextView;
-        public TextView messengerTextView;
-        public CircleImageView messengerImageView;
+        implements GoogleApiClient.OnConnectionFailedListener,
 
-        public MessageViewHolder(View v) {
-            super(v);
-            messageTextView = (TextView) itemView.findViewById(R.id.messageTextView);
-            messengerTextView = (TextView) itemView.findViewById(R.id.messengerTextView);
-            messengerImageView = (CircleImageView) itemView.findViewById(R.id.messengerImageView);
-        }
-    }
+        MessageUtil.MessageLoadListener {
 
     private static final String TAG = "MainActivity";
     public static final String MESSAGES_CHILD = "messages";
     private static final int REQUEST_INVITE = 1;
-    public static final int DEFAULT_MSG_LENGTH_LIMIT = 10;
+    public static final int MSG_LENGTH_LIMIT = 64;
     public static final String ANONYMOUS = "anonymous";
     private String mUsername;
     private String mPhotoUrl;
@@ -76,6 +70,10 @@ public class MainActivity extends AppCompatActivity
     private EditText mMessageEditText;
 
     // Firebase instance variables
+    private FirebaseAuth mAuth;
+    private FirebaseUser mUser;
+
+    private FirebaseRecyclerAdapter<ChatMessage, MessageUtil.MessageViewHolder> mFirebaseAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,6 +83,18 @@ public class MainActivity extends AppCompatActivity
         // Set default username is anonymous.
         mUsername = ANONYMOUS;
         //Initialize Auth
+        mAuth = FirebaseAuth.getInstance();
+        mUser = mAuth.getCurrentUser();
+        if (mUser == null) {
+            startActivity(new Intent(this, SignInActivity.class));
+            finish();
+            return;
+        } else {
+            mUsername = mUser.getDisplayName();
+            if (mUser.getPhotoUrl() != null) {
+                mPhotoUrl = mUser.getPhotoUrl().toString();
+            }
+        }
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .enableAutoManage(this /* FragmentActivity */, this /* OnConnectionFailedListener */)
@@ -101,8 +111,7 @@ public class MainActivity extends AppCompatActivity
         mProgressBar.setVisibility(ProgressBar.INVISIBLE);
 
         mMessageEditText = (EditText) findViewById(R.id.messageEditText);
-        mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(mSharedPreferences
-                .getInt(CodelabPreferences.MSG_LENGTH, DEFAULT_MSG_LENGTH_LIMIT))});
+        mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(MSG_LENGTH_LIMIT)});
         mMessageEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -126,7 +135,21 @@ public class MainActivity extends AppCompatActivity
         mSendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // Send messages on click.
+                //Send messages on click.
+
+                mMessageRecyclerView.scrollToPosition(0);
+
+                ChatMessage chatMessage = new
+
+                        ChatMessage(mMessageEditText.getText().toString(),
+
+                        mUsername,
+
+                        mPhotoUrl);
+
+                MessageUtil.send(chatMessage);
+
+                mMessageEditText.setText("");
             }
         });
     }
@@ -153,16 +176,36 @@ public class MainActivity extends AppCompatActivity
         super.onDestroy();
     }
 
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main_menu, menu);
+        mFirebaseAdapter = MessageUtil.getFirebaseAdapter(this,
+
+                this, /* MessageLoadListener */
+
+                mLinearLayoutManager,
+
+                mMessageRecyclerView);
+
+        mMessageRecyclerView.setAdapter(mFirebaseAdapter);
+
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        return super.onOptionsItemSelected(item);
+        switch (item.getItemId()) {
+            case R.id.sign_out_menu:
+                mAuth.signOut();
+                Auth.GoogleSignInApi.signOut(mGoogleApiClient);
+                mUsername = ANONYMOUS;
+                startActivity(new Intent(this, SignInActivity.class));
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     @Override
@@ -171,5 +214,13 @@ public class MainActivity extends AppCompatActivity
         // be available.
         Log.d(TAG, "onConnectionFailed:" + connectionResult);
         Toast.makeText(this, "Google Play Services error.", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+
+    public void onLoadComplete() {
+
+        mProgressBar.setVisibility(ProgressBar.INVISIBLE);
+
     }
 }

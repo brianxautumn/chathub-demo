@@ -13,7 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.sfsu.csc780.chathub;
+package edu.sfsu.csc780.chathub.model;
+
+import android.support.v7.widget.RecyclerView;
+import android.view.View;
+import android.widget.TextView;
+
+import de.hdodenhof.circleimageview.CircleImageView;
 
 public class ChatMessage {
 
@@ -53,4 +59,9 @@ public class ChatMessage {
     public void setPhotoUrl(String photoUrl) {
         this.photoUrl = photoUrl;
     }
+
+
+
+
+
 }

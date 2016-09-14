@@ -13,10 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.sfsu.csc780.chathub;
+package edu.sfsu.csc780.chathub.service;
 
-public class CodelabPreferences {
+public class MyFirebaseInstanceIdService {
 
-    public static final String MSG_LENGTH = "msg_length";
+    private static final String TAG = "MyFirebaseIIDService";
+
+    /**
+     * The Application's current Instance ID token is no longer valid and thus a new one must be requested.
+     */
+    public void onTokenRefresh() {
+    }
 
 }
